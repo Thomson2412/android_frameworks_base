@@ -676,7 +676,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_LAUNCH_VOICE_ASSIST_WITH_WAKE_LOCK = 12;
     private static final int MSG_POWER_DELAYED_PRESS = 13;
     private static final int MSG_POWER_LONG_PRESS = 14;
-    private static final int MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK = 13;
+    private static final int MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK = 15;
 
     private class PolicyHandler extends Handler {
         @Override
@@ -5333,7 +5333,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     }
 				}
 				if (isMusicActive() && (result & ACTION_PASS_TO_USER) == 0) {
-					if (mVolBtnMusicControls && down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
+					if (down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
 						mIsLongPress = false;
 						int newKeyCode = event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP ?
 								KeyEvent.KEYCODE_MEDIA_NEXT : KeyEvent.KEYCODE_MEDIA_PREVIOUS;
@@ -5343,7 +5343,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 						mHandler.sendMessageDelayed(msg, ViewConfiguration.getLongPressTimeout());
 						break;
 					} else {
-						if (mVolBtnMusicControls && !down) {
+						if (!down) {
 							mHandler.removeMessages(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK);
 							if (mIsLongPress) {
 								break;
