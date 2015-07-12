@@ -432,6 +432,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     boolean mBackKillPending;
     
     //volbtn music control
+    boolean mVolBtnMusicControls;
     boolean mIsLongPress;
 
     // The last window we were told about in focusChanged.
@@ -1976,6 +1977,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.System.VOLUME_BUTTON_WAKE,
                     0,
                     UserHandle.USER_CURRENT) != 0;
+                    
+            mVolBtnMusicControls = (Settings.System.getIntForUser(resolver,
+                    Settings.System.VOLUME_MUSIC_CONTROL,
+                     1, UserHandle.USER_CURRENT) == 1);
 
             mHomeWakeSupport = Settings.System.getIntForUser(resolver,
                     Settings.System.HOME_BUTTON_WAKE,
@@ -5340,7 +5345,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     boolean mayChangeVolume = false;
 
                     if (isMusicActive()) {
-                        if (true) {
+                        if (mVolBtnMusicControls) {
                             // Detect long key presses.
                             if (down) {
                                 mIsLongPress = false;
@@ -5530,7 +5535,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
     
     private void scheduleLongPressKeyEvent(KeyEvent origEvent, int keyCode) {
-		Log.e("VOLUME TRACK CONTROL", "cheduleLongPressKeyEvent");
         KeyEvent event = new KeyEvent(origEvent.getDownTime(), origEvent.getEventTime(),
                 origEvent.getAction(), keyCode, 0);
         Message msg = mHandler.obtainMessage(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK, event);
