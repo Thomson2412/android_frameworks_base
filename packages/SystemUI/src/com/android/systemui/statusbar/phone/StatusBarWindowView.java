@@ -54,6 +54,7 @@ public class StatusBarWindowView extends FrameLayout {
     PhoneStatusBar mService;
     private final Paint mTransparentSrcPaint = new Paint();
     
+    private int mStatusBarHeaderHeight;    
     private GestureDetector mDoubleTapGesture;
 
     public StatusBarWindowView(Context context, AttributeSet attrs) {
@@ -61,6 +62,8 @@ public class StatusBarWindowView extends FrameLayout {
         setMotionEventSplittingEnabled(false);
         mTransparentSrcPaint.setColor(0);
         mTransparentSrcPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
+        mStatusBarHeaderHeight = context
+                .getResources().getDimensionPixelSize(R.dimen.status_bar_header_height);
     }
 
     @Override
