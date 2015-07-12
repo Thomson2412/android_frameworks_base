@@ -27,6 +27,7 @@ import android.media.session.MediaSessionLegacyHelper;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.AttributeSet;
+import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -98,11 +99,8 @@ public class StatusBarWindowView extends FrameLayout {
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
-                Log.d(TAG, "Gesture!!");
                 if(pm != null)
                     pm.goToSleep(e.getEventTime());
-                else
-                    Log.d(TAG, "getSystemService returned null PowerManager");
 
                 return true;
             }
@@ -185,7 +183,6 @@ public class StatusBarWindowView extends FrameLayout {
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         boolean intercept = false;
         if (ev.getY() < mStatusBarHeaderHeight) {
-            if (DEBUG) Log.w(TAG, "logging double tap gesture");
             mDoubleTapGesture.onTouchEvent(ev);
         }
         if (mNotificationPanel.isFullyExpanded()
