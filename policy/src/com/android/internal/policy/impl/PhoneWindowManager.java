@@ -432,7 +432,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     boolean mBackKillPending;
     
     //volbtn music control
-    boolean mVolBtnMusicControls;
+    boolean mVolumeMusicControl;
     boolean mIsLongPress;
 
     // The last window we were told about in focusChanged.
@@ -1978,7 +1978,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     0,
                     UserHandle.USER_CURRENT) != 0;
                     
-            mVolBtnMusicControls = (Settings.System.getIntForUser(resolver,
+            mVolumeMusicControl = (Settings.System.getIntForUser(resolver,
                     Settings.System.VOLUME_MUSIC_CONTROL,
                      1, UserHandle.USER_CURRENT) == 1);
 
@@ -5345,7 +5345,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     boolean mayChangeVolume = false;
 
                     if (isMusicActive()) {
-                        if (mVolBtnMusicControls) {
+                        if (mVolumeMusicControl) {
                             // Detect long key presses.
                             if (down) {
                                 mIsLongPress = false;
