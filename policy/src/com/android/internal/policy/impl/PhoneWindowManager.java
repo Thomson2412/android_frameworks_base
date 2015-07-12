@@ -1978,9 +1978,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     0,
                     UserHandle.USER_CURRENT) != 0;
                     
-            mVolumeMusicControl = (Settings.System.getIntForUser(resolver,
+            mVolumeMusicControl = Settings.System.getIntForUser(resolver,
                     Settings.System.VOLUME_MUSIC_CONTROL,
-                     1, UserHandle.USER_CURRENT) == 1);
+                    0,
+                    UserHandle.USER_CURRENT) != 0;
 
             mHomeWakeSupport = Settings.System.getIntForUser(resolver,
                     Settings.System.HOME_BUTTON_WAKE,

@@ -2743,6 +2743,12 @@ public final class Settings {
          * @hide
          */
         public static final String VOLUME_BUTTON_WAKE = "volume_button_wake";
+        
+        /**
+         * Whether volume button press shuld be treated as next or previous song
+         * @hide
+         */
+        public static final String VOLUME_MUSIC_CONTROL = "volume_music_control";
 
         /**
          * Whether home button press shuld be treated as wake key
