@@ -694,10 +694,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 case MSG_DISPATCH_MEDIA_KEY_REPEAT_WITH_WAKE_LOCK:
                     dispatchMediaKeyRepeatWithWakeLock((KeyEvent)msg.obj);
                     break;
-                case MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK:
-                    dispatchMediaKeyWithWakeLockToAudioService((KeyEvent)msg.obj);
-                    dispatchMediaKeyWithWakeLockToAudioService(KeyEvent.changeAction((KeyEvent)msg.obj, KeyEvent.ACTION_UP));
-                    break;
                 case MSG_DISPATCH_SHOW_RECENTS:
                     showRecentApps(false);
                     break;
@@ -729,7 +725,15 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 case MSG_POWER_LONG_PRESS:
                     powerLongPress();
                     break;
-            }
+                case MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK: {
+                    KeyEvent event = (KeyEvent) msg.obj;
+                    mIsLongPress = true;
+                    dispatchMediaKeyWithWakeLockToAudioService(event);
+                    dispatchMediaKeyWithWakeLockToAudioService(
+                            KeyEvent.changeAction(event, KeyEvent.ACTION_UP));
+                    break;
+                }
+            }            
         }
     }
 
@@ -5331,47 +5335,59 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         }
                     }
 				}
-				if (isMusicActive() && (result & ACTION_PASS_TO_USER) == 0) {
-					if (down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
-						mIsLongPress = false;
-						int newKeyCode = event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP ?
-								KeyEvent.KEYCODE_MEDIA_NEXT : KeyEvent.KEYCODE_MEDIA_PREVIOUS;
-						Message msg = mHandler.obtainMessage(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK,
-								new KeyEvent(event.getDownTime(), event.getEventTime(), event.getAction(), newKeyCode, 0));
-						msg.setAsynchronous(true);
-						mHandler.sendMessageDelayed(msg, ViewConfiguration.getLongPressTimeout());
-						break;
-					} else {
-						if (!down) {
-							mHandler.removeMessages(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK);
-							if (mIsLongPress) {
-								break;
-							}
-						}
-					}
-				}
-
 
 				if ((result & ACTION_PASS_TO_USER) == 0) {
-					// volume key can be a wakeup event
-					boolean sendVolumeKey = true;
-					if (mVolumeWakeSupport && !interactive) {
-						sendVolumeKey = false;
-					}
-					if (sendVolumeKey) {
-						if (DEBUG_INPUT) {
-							Slog.d(TAG, "interceptKeyTq sendVolumeKeyEvent");
-						}
-						// If we aren't passing to the user and no one else
-						// handled it send it to the session manager to figure
-						// out.
-						MediaSessionLegacyHelper.getHelper(mContext)
-								.sendVolumeKeyEvent(event, true);
-					}
-					break;
-				}
+                    boolean mayChangeVolume = false;
+
+                    if (isMusicActive()) {
+                        if (true) {
+                            // Detect long key presses.
+                            if (down) {
+                                mIsLongPress = false;
+                                // Map MUTE key to MEDIA_PLAY_PAUSE
+                                int newKeyCode = KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE;
+                                switch (keyCode) {
+                                    case KeyEvent.KEYCODE_VOLUME_DOWN:
+                                        newKeyCode = KeyEvent.KEYCODE_MEDIA_PREVIOUS;
+                                        break;
+                                    case KeyEvent.KEYCODE_VOLUME_UP:
+                                        newKeyCode = KeyEvent.KEYCODE_MEDIA_NEXT;
+                                        break;
+                                }
+                                scheduleLongPressKeyEvent(event, newKeyCode);
+                                // Consume key down events of all presses.
+                                break;
+                            } else {
+                                mHandler.removeMessages(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK);
+                                // Consume key up events of long presses only.
+                                if (mIsLongPress) {
+                                    break;
+                                }
+                                // Change volume only on key up events of short presses.
+                                mayChangeVolume = true;
+                            }
+                        } else {
+                            // Long key press detection not applicable, change volume only
+                            // on key down events
+                            mayChangeVolume = down;
+                        }
+                    }
+
+                    if (mayChangeVolume) {
+                        // If we aren't passing to the user and no one else
+                        // handled it send it to the session manager to figure
+                        // out.
+
+                        // Rewrite the event to use key-down as sendVolumeKeyEvent will
+                        // only change the volume on key down.
+                        KeyEvent newEvent = new KeyEvent(KeyEvent.ACTION_DOWN, keyCode);
+                        MediaSessionLegacyHelper.getHelper(mContext)
+                                .sendVolumeKeyEvent(newEvent, true);
+                    }
+                    break;
+                }
+                break;
             }
-            break;
 
             case KeyEvent.KEYCODE_ENDCALL: {
                 result &= ~ACTION_PASS_TO_USER;
@@ -5511,6 +5527,15 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
 
         return result;
+    }
+    
+    private void scheduleLongPressKeyEvent(KeyEvent origEvent, int keyCode) {
+		Log.e("VOLUME TRACK CONTROL", "cheduleLongPressKeyEvent");
+        KeyEvent event = new KeyEvent(origEvent.getDownTime(), origEvent.getEventTime(),
+                origEvent.getAction(), keyCode, 0);
+        Message msg = mHandler.obtainMessage(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK, event);
+        msg.setAsynchronous(true);
+        mHandler.sendMessageDelayed(msg, ViewConfiguration.getLongPressTimeout());
     }
 
     /**
