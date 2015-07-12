@@ -430,6 +430,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     boolean mHasAssistKey;
     boolean mHasAppSwitchKey;
     boolean mBackKillPending;
+    
+    //volbtn music control
+    boolean mIsLongPress;
 
     // The last window we were told about in focusChanged.
     WindowState mFocusedWindow;
@@ -673,6 +676,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final int MSG_LAUNCH_VOICE_ASSIST_WITH_WAKE_LOCK = 12;
     private static final int MSG_POWER_DELAYED_PRESS = 13;
     private static final int MSG_POWER_LONG_PRESS = 14;
+    private static final int MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK = 13;
 
     private class PolicyHandler extends Handler {
         @Override
@@ -689,6 +693,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     break;
                 case MSG_DISPATCH_MEDIA_KEY_REPEAT_WITH_WAKE_LOCK:
                     dispatchMediaKeyRepeatWithWakeLock((KeyEvent)msg.obj);
+                    break;
+                case MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK:
+                    dispatchMediaKeyWithWakeLockToAudioService((KeyEvent)msg.obj);
+                    dispatchMediaKeyWithWakeLockToAudioService(KeyEvent.changeAction((KeyEvent)msg.obj, KeyEvent.ACTION_UP));
                     break;
                 case MSG_DISPATCH_SHOW_RECENTS:
                     showRecentApps(false);
@@ -2814,6 +2822,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         final boolean longPress = (flags & KeyEvent.FLAG_LONG_PRESS) != 0;
         final boolean virtualKey = event.getDeviceId() == KeyCharacterMap.VIRTUAL_KEYBOARD;
         final int scanCode = event.getScanCode();
+        int keyCode = event.getKeyCode();
 
         if (DEBUG_INPUT) {
             Slog.d(TAG, "interceptKeyTi keyCode=" + keyCode + " down=" + down + " repeatCount="
@@ -5014,6 +5023,20 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mHdmiPlugged = !plugged;
         setHdmiPlugged(!mHdmiPlugged);
     }
+    
+     /**
+     * @return Whether music is being played right now "locally" (e.g. on the device's speakers
+     *    or wired headphones) or "remotely" (e.g. on a device using the Cast protocol and
+     *    controlled by this device, or through remote submix).
+     */
+    private boolean isMusicActive() {
+        final AudioManager am = (AudioManager)mContext.getSystemService(Context.AUDIO_SERVICE);
+        if (am == null) {
+            Log.w(TAG, "isMusicActive: couldn't get AudioManager reference");
+            return false;
+        }
+        return am.isMusicActive();
+    }
 
     final Object mScreenshotLock = new Object();
     final Object mScreenrecordLock = new Object();
@@ -5308,28 +5331,48 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                             break;
                         }
                     }
+				}
+				if (isMusicActive() && (result & ACTION_PASS_TO_USER) == 0) {
+					if (mVolBtnMusicControls && down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
+						mIsLongPress = false;
+						int newKeyCode = event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP ?
+								KeyEvent.KEYCODE_MEDIA_NEXT : KeyEvent.KEYCODE_MEDIA_PREVIOUS;
+						Message msg = mHandler.obtainMessage(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK,
+								new KeyEvent(event.getDownTime(), event.getEventTime(), event.getAction(), newKeyCode, 0));
+						msg.setAsynchronous(true);
+						mHandler.sendMessageDelayed(msg, ViewConfiguration.getLongPressTimeout());
+						break;
+					} else {
+						if (mVolBtnMusicControls && !down) {
+							mHandler.removeMessages(MSG_DISPATCH_VOLKEY_WITH_WAKE_LOCK);
+							if (mIsLongPress) {
+								break;
+							}
+						}
+					}
+				}
 
-                    if ((result & ACTION_PASS_TO_USER) == 0) {
-                        // volume key can be a wakeup event
-                        boolean sendVolumeKey = true;
-                        if (mVolumeWakeSupport && !interactive) {
-                            sendVolumeKey = false;
-                        }
-                        if (sendVolumeKey) {
-                            if (DEBUG_INPUT) {
-                                Slog.d(TAG, "interceptKeyTq sendVolumeKeyEvent");
-                            }
-                            // If we aren't passing to the user and no one else
-                            // handled it send it to the session manager to figure
-                            // out.
-                            MediaSessionLegacyHelper.getHelper(mContext)
-                                    .sendVolumeKeyEvent(event, true);
-                        }
-                        break;
-                    }
-                }
-                break;
+
+				if ((result & ACTION_PASS_TO_USER) == 0) {
+					// volume key can be a wakeup event
+					boolean sendVolumeKey = true;
+					if (mVolumeWakeSupport && !interactive) {
+						sendVolumeKey = false;
+					}
+					if (sendVolumeKey) {
+						if (DEBUG_INPUT) {
+							Slog.d(TAG, "interceptKeyTq sendVolumeKeyEvent");
+						}
+						// If we aren't passing to the user and no one else
+						// handled it send it to the session manager to figure
+						// out.
+						MediaSessionLegacyHelper.getHelper(mContext)
+								.sendVolumeKeyEvent(event, true);
+					}
+					break;
+				}
             }
+            break;
 
             case KeyEvent.KEYCODE_ENDCALL: {
                 result &= ~ACTION_PASS_TO_USER;
